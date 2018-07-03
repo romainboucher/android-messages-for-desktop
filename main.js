@@ -3,12 +3,22 @@ const electron = require('electron');
 const path = require('path');
 const url = require('url');
 const windowStateKeeper = require('electron-window-state');
-const {app, BrowserWindow, Menu, MenuItem} = electron;
+const {autoUpdater} = require("electron-updater");
+
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  MenuItem
+} = electron;
 
 let mainWindow
 
+autoUpdater.logger = require("electron-log")
+autoUpdater.logger.transports.file.level = "info"
+
 //Creating the window
-function createWindow () {
+function createWindow() {
 
   let mainWindowState = windowStateKeeper({
     defaultWidth: 1000,
@@ -25,12 +35,18 @@ function createWindow () {
   }
 
   mainWindow = new BrowserWindow(windowOptions)
-  //mainWindow.webContents.openDevTools();
+
+  const dev = process.env.NODE_ENV === "dev";
+
+  if(dev)
+  {
+    mainWindow.webContents.openDevTools();
+  }
 
   mainWindow.loadURL(url.format({
-   pathname: path.join('messages.android.com'),
-   protocol: 'https:',
-   slashes: true
+    pathname: path.join('messages.android.com'),
+    protocol: 'https:',
+    slashes: true
   }))
 
   //When a SMS arrived in the app, change the badge
@@ -46,25 +62,40 @@ function createWindow () {
   }
 
   mainWindow.on('closed', () => {
-   mainWindow = null
- });
+    mainWindow = null
+  });
 
- mainWindowState.manage(mainWindow);
+  mainWindowState.manage(mainWindow);
 }
 
 //Creating the menu
-function createMenu (){
+function createMenu() {
   var i18n = new(require('./translations/i18n'));
 
-  const template = [
-    {
-    label: i18n.__('Edit'),
-    submenu: [
-      {label: i18n.__('Copy'),role: 'copy'},
-      {label: i18n.__('Paste'),role: 'paste'},
-      {label: i18n.__('Select all'),role: 'selectall'},
-      {type: 'separator'},
-      {label: i18n.__('Reload'),accelerator: 'CmdOrCtrl+R',click (item, focusedWindow) {if (focusedWindow) focusedWindow.reload()}},
+  const template = [{
+      label: i18n.__('Edit'),
+      submenu: [{
+          label: i18n.__('Copy'),
+          role: 'copy'
+        },
+        {
+          label: i18n.__('Paste'),
+          role: 'paste'
+        },
+        {
+          label: i18n.__('Select all'),
+          role: 'selectall'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: i18n.__('Reload'),
+          accelerator: 'CmdOrCtrl+R',
+          click(item, focusedWindow) {
+            if (focusedWindow) focusedWindow.reload()
+          }
+        },
       ]
     },
     {
@@ -77,24 +108,55 @@ function createMenu (){
     const name = app.getName()
     template.unshift({
       label: name,
-      submenu: [
-        {label: i18n.__('About'),role: 'about'},
-        {type: 'separator'},
-        {label: i18n.__('Disconnect account'), click: function click() {clearAppCache(); }},
-        {type: 'separator'},
-        {label: i18n.__('Hide')+' '+name,role: 'hide'},
-        {label: i18n.__('Hide others'),role: 'hideothers'},
-        {label: i18n.__('Unhide'),role: 'unhide'},
-        {type: 'separator'},
-        {label: i18n.__('Quit'),role: 'quit'}
+      submenu: [{
+          label: i18n.__('About'),
+          role: 'about'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: i18n.__('Disconnect account'),
+          click: function click() {
+            clearAppCache();
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: i18n.__('Hide') + ' ' + name,
+          role: 'hide'
+        },
+        {
+          label: i18n.__('Hide others'),
+          role: 'hideothers'
+        },
+        {
+          label: i18n.__('Unhide'),
+          role: 'unhide'
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: i18n.__('Quit'),
+          role: 'quit'
+        }
       ]
     })
 
     template[1].submenu.push()
 
-    template[2].submenu = [
-      {label: i18n.__('Minimize'),accelerator: 'CmdOrCtrl+M',role: 'minimize'},
-      {label: i18n.__('Zoom'),role: 'zoom'}
+    template[2].submenu = [{
+        label: i18n.__('Minimize'),
+        accelerator: 'CmdOrCtrl+M',
+        role: 'minimize'
+      },
+      {
+        label: i18n.__('Zoom'),
+        role: 'zoom'
+      }
     ]
   }
 
@@ -108,9 +170,9 @@ function clearAppCache() {
   session.clearStorageData(function () {
     session.clearCache(function () {
       mainWindow.loadURL(url.format({
-       pathname: path.join('messages.android.com'),
-       protocol: 'https:',
-       slashes: true
+        pathname: path.join('messages.android.com'),
+        protocol: 'https:',
+        slashes: true
       }))
     });
   });
@@ -124,11 +186,12 @@ function countMessages(title) {
 }
 
 //When the app is ready
-app.on('ready', function(){
+app.on('ready', function () {
   createWindow();
   if (process.platform === 'darwin') {
     createMenu();
   }
+  autoUpdater.checkForUpdatesAndNotify();
 });
 
 //Full closure of the app
